@@ -1,0 +1,62 @@
+name: CrownThrive OS Binding + Rebrand Enforcement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  enforce-main:
+    if: github.event_name != 'pull_request'
+    permissions: {contents: write}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {fetch-depth: 0}
+      - name: Verify binding and auto-heal retired identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,re,subprocess
+          from pathlib import Path
+          i=json.loads(Path('.crownthrive/canonical-os.json').read_text()); assert i['component_repository']==os.environ['GITHUB_REPOSITORY']; assert i['canonical_control_repository']=='crownthrive1/CrownThrive-OS'; assert i['canonical_url']=='https://github.com/crownthrive1/CrownThrive-OS'
+          ptn=re.compile(re.escape('CrownThrive-'+'Support'),re.I); files=subprocess.check_output(['git','ls-files','-z']).decode().split('\0'); n=0; changed=[]
+          for f in files:
+              if not f or f=='.github/workflows/crownthrive-os-binding-enforcement.yml': continue
+              p=Path(f)
+              try: b=p.read_text(encoding='utf-8')
+              except (UnicodeDecodeError,OSError): continue
+              a,c=ptn.subn('CrownThrive-OS',b)
+              if c: p.write_text(a,encoding='utf-8'); n+=c; changed.append(f)
+          hits=[]
+          for f in files:
+              if not f or f=='.github/workflows/crownthrive-os-binding-enforcement.yml': continue
+              try: t=Path(f).read_text(encoding='utf-8')
+              except (UnicodeDecodeError,OSError): continue
+              if ptn.search(t): hits.append(f)
+          if hits: raise SystemExit('Retired OS identity remains: '+', '.join(hits))
+          print(f'Canonical binding verified; auto-healed {n} reference(s) across {len(changed)} file(s).')
+          PY
+          if ! git diff --quiet; then git config user.name 'CrownThrive PentaUpdate'; git config user.email 'contact@crownthrive.com'; git add -A; git commit -m 'rebrand(os): auto-heal canonical CrownThrive-OS references'; git push origin HEAD:main; fi
+  validate-pr:
+    if: github.event_name == 'pull_request'
+    permissions: {contents: read}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reject retired OS identity
+        shell: python
+        run: |
+          import json,os,re,subprocess
+          from pathlib import Path
+          i=json.loads(Path('.crownthrive/canonical-os.json').read_text()); assert i['component_repository']==os.environ['GITHUB_REPOSITORY']; assert i['canonical_control_repository']=='crownthrive1/CrownThrive-OS'
+          ptn=re.compile(re.escape('CrownThrive-'+'Support'),re.I); hits=[]
+          for f in subprocess.check_output(['git','ls-files','-z']).decode().split('\0'):
+              if not f or f=='.github/workflows/crownthrive-os-binding-enforcement.yml': continue
+              try: t=Path(f).read_text(encoding='utf-8')
+              except (UnicodeDecodeError,OSError): continue
+              if ptn.search(t): hits.append(f)
+          if hits: raise SystemExit('Retired OS identity is forbidden: '+', '.join(hits))
+          print('Canonical CrownThrive-OS binding verified.')
