@@ -3,7 +3,7 @@
   "contract":"ct.governance.gate-contract.v4",
   "contract_version":"4.0.0",
   "repository":"crownthrive1/CrownThrive-CSS",
-  "authority_source":{"repository":"crownthrive1/CrownThrive-Support","path":"developers/manifests/phase4-gate-contract.v4.json","required_status_context":"CrownThrive governed merge gate"},
+  "authority_source":{"repository":"crownthrive1/CrownThrive-OS","path":"developers/manifests/phase4-gate-contract.v4.json","required_status_context":"CrownThrive governed merge gate"},
   "current_institutional_phase":3,
   "target_phase":4,
   "phase4_state":"BOUND_COMPAT_BOOTSTRAP",
